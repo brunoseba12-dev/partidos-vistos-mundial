@@ -805,3 +805,35 @@ select option {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* FIX: asegurar que los campos del portal siempre reciban clics y escritura */
+.portal-card,
+.portal-form,
+.portal-form label,
+.campo-icono,
+.campo-icono input,
+.password-toggle,
+.auth-tabs button,
+.btn-ingresar {
+  pointer-events: auto;
+}
+
+.campo-icono {
+  position: relative;
+}
+
+.campo-icono input {
+  position: relative;
+  z-index: 3;
+  caret-color: #ffffff;
+}
+
+.campo-icono svg {
+  pointer-events: none;
+}
+
+.campo-icono input:disabled {
+  opacity: 1;
+  -webkit-text-fill-color: #ffffff;
+}

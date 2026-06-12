@@ -208,22 +208,25 @@ async function cargarAppSiCorresponde() {
 
 async function inicializarSupabase() {
   mostrarPortal();
-  bloquearFormularioAuth(true);
-  ponerMensajeAuth("Preparando acceso seguro...", "info");
+  // Dejamos los campos habilitados desde el primer segundo.
+  // Antes quedaban bloqueados mientras Netlify/Supabase cargaba la configuración;
+  // si esa carga fallaba, no se podía escribir email ni contraseña.
+  bloquearFormularioAuth(false);
+  ponerMensajeAuth("", "info");
 
   try {
     const respuesta = await fetch(CONFIG_API_URL, { cache: "no-store" });
     const config = await respuesta.json().catch(() => ({}));
 
     if (!respuesta.ok || !config.loginDisponible || !config.supabaseUrl || !config.supabaseAnonKey) {
-      bloquearFormularioAuth(true);
-      ponerMensajeAuth("El acceso no está disponible ahora. Probá de nuevo en unos minutos.", "error");
+      bloquearFormularioAuth(false);
+      ponerMensajeAuth("El acceso está cargando. Si no te deja entrar, recargá la página en unos segundos.", "info");
       return;
     }
 
     if (!window.supabase?.createClient) {
-      bloquearFormularioAuth(true);
-      ponerMensajeAuth("No se pudo cargar el módulo de login. Actualizá la página y probá de nuevo.", "error");
+      bloquearFormularioAuth(false);
+      ponerMensajeAuth("El acceso está cargando. Actualizá la página y probá de nuevo.", "info");
       return;
     }
 
@@ -256,8 +259,8 @@ async function inicializarSupabase() {
     }
   } catch (error) {
     console.error(error);
-    bloquearFormularioAuth(true);
-    ponerMensajeAuth("El acceso no está disponible ahora. Probá de nuevo en unos minutos.", "error");
+    bloquearFormularioAuth(false);
+    ponerMensajeAuth("El acceso está cargando. Si no te deja entrar, recargá la página en unos segundos.", "info");
   }
 }
 
@@ -286,7 +289,7 @@ function obtenerCredencialesAuth() {
 
 async function ingresar() {
   if (!supabaseClient) {
-    ponerMensajeAuth("El login todavía no está pronto. Actualizá la página y probá de nuevo.", "error");
+    ponerMensajeAuth("Todavía se está preparando el acceso. Recargá la página y probá de nuevo.", "error");
     return;
   }
 
@@ -317,7 +320,7 @@ async function ingresar() {
 
 async function crearCuenta() {
   if (!supabaseClient) {
-    ponerMensajeAuth("El login todavía no está pronto. Actualizá la página y probá de nuevo.", "error");
+    ponerMensajeAuth("Todavía se está preparando el acceso. Recargá la página y probá de nuevo.", "error");
     return;
   }
 
