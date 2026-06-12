@@ -398,6 +398,7 @@
     let partidos = [];
     let vistos = JSON.parse(localStorage.getItem("mundial2026PartidosVistos")) || [];
     let conteosGlobales = {};
+    let conteosPendientes = new Set();
 
     const listaPartidos = document.getElementById("listaPartidos");
     const buscador = document.getElementById("buscador");
@@ -456,10 +457,22 @@
         }
 
         const datos = await respuesta.json();
-        conteosGlobales = datos.conteos || {};
+        const nuevosConteos = datos.conteos || {};
+
+        partidos.forEach(partido => {
+          if (!conteosPendientes.has(partido.id)) {
+            conteosGlobales[partido.id] = nuevosConteos[partido.id] || 0;
+          }
+        });
       } catch (error) {
         console.warn("No se pudieron cargar los vistos globales", error);
       }
+    }
+
+    function aplicarConteoOptimista(id, nuevoEstado) {
+      const cantidadActual = Number(conteosGlobales[id]) || 0;
+      const variacion = nuevoEstado ? 1 : -1;
+      conteosGlobales[id] = Math.max(0, cantidadActual + variacion);
     }
 
     async function actualizarVistoGlobal(id, visto) {
@@ -486,6 +499,7 @@
     async function cambiarVisto(id) {
       const estabaVisto = estaVisto(id);
       const nuevoEstado = !estabaVisto;
+      const cantidadAnterior = conteosGlobales[id] || 0;
 
       if (nuevoEstado) {
         vistos.push(id);
@@ -493,15 +507,17 @@
         vistos = vistos.filter(partidoId => partidoId !== id);
       }
 
+      aplicarConteoOptimista(id, nuevoEstado);
+      conteosPendientes.add(id);
       guardarVistos();
       mostrarRecuento();
       mostrarPartidos();
 
       try {
         await actualizarVistoGlobal(id, nuevoEstado);
-        mostrarPartidos();
       } catch (error) {
         console.error(error);
+        conteosGlobales[id] = cantidadAnterior;
 
         if (nuevoEstado) {
           vistos = vistos.filter(partidoId => partidoId !== id);
@@ -511,9 +527,17 @@
 
         guardarVistos();
         mostrarRecuento();
-        mostrarPartidos();
         alert("No se pudo actualizar el contador global. Probá de nuevo en unos segundos.");
+      } finally {
+        conteosPendientes.delete(id);
+        mostrarPartidos();
       }
+    }
+
+    async function sincronizarConteosGlobales() {
+      if (!partidos.length) return;
+      await cargarConteosGlobales();
+      mostrarPartidos();
     }
 
     function crearId(partido, indice) {
@@ -698,6 +722,7 @@
     function crearTarjeta(partido) {
       const visto = estaVisto(partido.id);
       const cantidadGlobal = conteosGlobales[partido.id] || 0;
+      const actualizandoConteo = conteosPendientes.has(partido.id);
       const idSeguro = encodeURIComponent(partido.id);
 
       return `
@@ -731,7 +756,7 @@
               />
               VISTO
             </label>
-            <div class="conteo-global">${textoConteoGlobal(cantidadGlobal)}</div>
+            <div class="conteo-global ${actualizandoConteo ? "actualizando" : ""}">${textoConteoGlobal(cantidadGlobal)}</div>
           </div>
         </article>
       `;
@@ -791,6 +816,7 @@
     actualizar.addEventListener("click", cargarPartidos);
 
     setInterval(cargarPartidos, 30 * 60 * 1000);
+    setInterval(sincronizarConteosGlobales, 10 * 1000);
 
     cargarPartidos();
   </script>
