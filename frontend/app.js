@@ -39,6 +39,7 @@ const estadoCarga = document.getElementById("estadoCarga");
 const portalLogin = document.getElementById("portalLogin");
 const appShell = document.getElementById("appShell");
 const authMensaje = document.getElementById("authMensaje");
+const authForm = document.getElementById("authForm");
 const authEmail = document.getElementById("authEmail");
 const authPassword = document.getElementById("authPassword");
 const authModoLogin = document.getElementById("authModoLogin");
@@ -46,6 +47,7 @@ const authModoRegistro = document.getElementById("authModoRegistro");
 const btnAuthPrincipal = document.getElementById("btnAuthPrincipal");
 const authPasswordToggle = document.getElementById("authPasswordToggle");
 const linkModoRegistro = document.getElementById("linkModoRegistro");
+const portalCuentaTexto = document.getElementById("portalCuentaTexto");
 const usuarioActual = document.getElementById("usuarioActual");
 const btnSalir = document.getElementById("btnSalir");
 
@@ -116,8 +118,39 @@ function mostrarApp() {
 }
 
 function ponerMensajeAuth(texto, tipo = "info") {
-  authMensaje.textContent = texto;
+  if (!authMensaje) return;
+  authMensaje.textContent = texto || "";
   authMensaje.dataset.tipo = tipo;
+}
+
+function traducirErrorAuth(error) {
+  const mensaje = String(error?.message || "").toLowerCase();
+
+  if (mensaje.includes("invalid login credentials")) {
+    return "No pudimos entrar: el email o la contraseña no coinciden.";
+  }
+
+  if (mensaje.includes("email not confirmed")) {
+    return "Tu cuenta existe, pero falta confirmar el email. Revisá tu correo y después volvé a iniciar sesión.";
+  }
+
+  if (mensaje.includes("user already registered") || mensaje.includes("already registered") || mensaje.includes("already exists")) {
+    return "Ese email ya está registrado. Tocá ‘Iniciar sesión’ y entrá con tu contraseña.";
+  }
+
+  if (mensaje.includes("signup") && mensaje.includes("disabled")) {
+    return "El registro por email está desactivado en Supabase. Activá Email en Authentication → Providers.";
+  }
+
+  if (mensaje.includes("password")) {
+    return "La contraseña no cumple los requisitos. Usá al menos 6 caracteres.";
+  }
+
+  if (mensaje.includes("rate limit") || mensaje.includes("too many")) {
+    return "Se hicieron muchos intentos seguidos. Esperá un minuto y probá de nuevo.";
+  }
+
+  return "No se pudo completar la acción. Probá de nuevo o revisá email y contraseña.";
 }
 
 function bloquearFormularioAuth(bloqueado) {
@@ -136,10 +169,16 @@ function cambiarModoAuth(modo) {
   authModoRegistro.classList.toggle("tab-activa", esRegistro);
   btnAuthPrincipal.textContent = esRegistro ? "Crear cuenta" : "Ingresar";
   authPassword.autocomplete = esRegistro ? "new-password" : "current-password";
+
+  if (portalCuentaTexto && linkModoRegistro) {
+    portalCuentaTexto.textContent = esRegistro ? "¿Ya tenés cuenta?" : "¿No tenés cuenta?";
+    linkModoRegistro.textContent = esRegistro ? "Iniciar sesión" : "Registrate acá";
+  }
+
   ponerMensajeAuth(
     esRegistro
-      ? "Creá tu usuario para entrar a la penca. Si Supabase pide confirmar email, revisá tu correo."
-      : "Ingresá con tu cuenta para entrar a la penca.",
+      ? "Completá los datos y tocá Crear cuenta."
+      : "Ingresá con tu email y contraseña.",
     "info"
   );
 }
@@ -182,6 +221,12 @@ async function inicializarSupabase() {
       return;
     }
 
+    if (!window.supabase?.createClient) {
+      bloquearFormularioAuth(true);
+      ponerMensajeAuth("No se pudo cargar el módulo de login. Actualizá la página y probá de nuevo.", "error");
+      return;
+    }
+
     supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
     const { data } = await supabaseClient.auth.getSession();
@@ -219,9 +264,15 @@ async function inicializarSupabase() {
 function obtenerCredencialesAuth() {
   const email = authEmail.value.trim();
   const password = authPassword.value;
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   if (!email || !password) {
-    ponerMensajeAuth("Poné email y contraseña.", "error");
+    ponerMensajeAuth("Poné email y contraseña para continuar.", "error");
+    return null;
+  }
+
+  if (!emailValido) {
+    ponerMensajeAuth("Ese email no parece válido. Revisalo y probá de nuevo.", "error");
     return null;
   }
 
@@ -234,51 +285,81 @@ function obtenerCredencialesAuth() {
 }
 
 async function ingresar() {
-  if (!supabaseClient) return;
+  if (!supabaseClient) {
+    ponerMensajeAuth("El login todavía no está pronto. Actualizá la página y probá de nuevo.", "error");
+    return;
+  }
+
   const credenciales = obtenerCredencialesAuth();
   if (!credenciales) return;
 
   bloquearFormularioAuth(true);
   ponerMensajeAuth("Ingresando...", "info");
 
-  const { error } = await supabaseClient.auth.signInWithPassword(credenciales);
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword(credenciales);
 
-  bloquearFormularioAuth(false);
+    if (error) {
+      ponerMensajeAuth(traducirErrorAuth(error), "error");
+      return;
+    }
 
-  if (error) {
-    ponerMensajeAuth("No pudimos iniciar sesión. Revisá email y contraseña.", "error");
-    return;
+    sesionActual = data.session;
+    ponerMensajeAuth("Listo, entrando...", "ok");
+    await cargarAppSiCorresponde();
+  } catch (error) {
+    console.error(error);
+    ponerMensajeAuth("No se pudo conectar con Supabase. Revisá internet y probá de nuevo.", "error");
+  } finally {
+    bloquearFormularioAuth(false);
   }
-
-  ponerMensajeAuth("Listo, entrando...", "ok");
 }
 
 async function crearCuenta() {
-  if (!supabaseClient) return;
+  if (!supabaseClient) {
+    ponerMensajeAuth("El login todavía no está pronto. Actualizá la página y probá de nuevo.", "error");
+    return;
+  }
+
   const credenciales = obtenerCredencialesAuth();
   if (!credenciales) return;
 
   bloquearFormularioAuth(true);
   ponerMensajeAuth("Creando cuenta...", "info");
 
-  const { data, error } = await supabaseClient.auth.signUp(credenciales);
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      ...credenciales,
+      options: {
+        emailRedirectTo: window.location.origin
+      }
+    });
 
-  bloquearFormularioAuth(false);
+    if (error) {
+      ponerMensajeAuth(traducirErrorAuth(error), "error");
+      return;
+    }
 
-  if (error) {
-    ponerMensajeAuth("No pudimos crear la cuenta. Probá con otro email o contraseña.", "error");
-    return;
-  }
+    if (data.session) {
+      sesionActual = data.session;
+      ponerMensajeAuth("Cuenta creada. Entrando...", "ok");
+      await cargarAppSiCorresponde();
+      return;
+    }
 
-  if (data.session) {
-    ponerMensajeAuth("Cuenta creada. Entrando...", "ok");
-  } else {
-    ponerMensajeAuth("Cuenta creada. Revisá tu correo para confirmar y después iniciá sesión.", "ok");
     cambiarModoAuth("login");
+    ponerMensajeAuth("Cuenta creada. Si Supabase te manda un mail, confirmalo. Después tocá Iniciar sesión.", "ok");
+  } catch (error) {
+    console.error(error);
+    ponerMensajeAuth("No se pudo conectar con Supabase. Revisá internet y probá de nuevo.", "error");
+  } finally {
+    bloquearFormularioAuth(false);
   }
 }
 
-async function enviarAuth() {
+async function enviarAuth(evento) {
+  evento?.preventDefault();
+
   if (modoAuth === "registro") {
     await crearCuenta();
   } else {
@@ -738,10 +819,13 @@ limpiar.addEventListener("click", () => {
 });
 
 actualizar.addEventListener("click", cargarPartidos);
-btnAuthPrincipal.addEventListener("click", enviarAuth);
+authForm?.addEventListener("submit", enviarAuth);
+btnAuthPrincipal.addEventListener("click", (evento) => {
+  if (!authForm) enviarAuth(evento);
+});
 authModoLogin.addEventListener("click", () => cambiarModoAuth("login"));
 authModoRegistro.addEventListener("click", () => cambiarModoAuth("registro"));
-linkModoRegistro?.addEventListener("click", () => cambiarModoAuth("registro"));
+linkModoRegistro?.addEventListener("click", () => cambiarModoAuth(modoAuth === "registro" ? "login" : "registro"));
 authPasswordToggle?.addEventListener("click", () => {
   const mostrando = authPassword.type === "text";
   authPassword.type = mostrando ? "password" : "text";
@@ -750,10 +834,10 @@ authPasswordToggle?.addEventListener("click", () => {
 btnSalir.addEventListener("click", salir);
 
 authPassword.addEventListener("keydown", (evento) => {
-  if (evento.key === "Enter") enviarAuth();
+  if (evento.key === "Enter") enviarAuth(evento);
 });
 authEmail.addEventListener("keydown", (evento) => {
-  if (evento.key === "Enter") enviarAuth();
+  if (evento.key === "Enter") enviarAuth(evento);
 });
 
 listaPartidos.addEventListener("change", (evento) => {

@@ -26,6 +26,7 @@
         <p class="portal-subtitulo">
           Iniciá sesión o registrate para ver los partidos y cargar tus pronósticos.
         </p>
+        <p class="auth-mensaje" id="authMensaje" aria-live="polite"></p>
       </div>
 
       <div class="auth-tabs" aria-label="Elegir acción">
@@ -39,7 +40,7 @@
         </button>
       </div>
 
-      <div class="portal-form">
+      <form class="portal-form" id="authForm" novalidate>
         <label>
           Email
           <span class="campo-icono">
@@ -59,17 +60,15 @@
           </span>
         </label>
 
-        <button id="btnAuthPrincipal" class="btn-ingresar" type="button">Ingresar</button>
-      </div>
+        <button id="btnAuthPrincipal" class="btn-ingresar" type="submit">Ingresar</button>
+      </form>
 
       <div class="portal-divider"><span></span><em>o</em><span></span></div>
 
       <p class="portal-cuenta">
-        ¿No tenés cuenta?
+        <span id="portalCuentaTexto">¿No tenés cuenta?</span>
         <button id="linkModoRegistro" type="button">Registrate acá</button>
       </p>
-
-      <p class="auth-mensaje" id="authMensaje" aria-live="polite"></p>
     </div>
   </section>
 
