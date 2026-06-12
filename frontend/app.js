@@ -24,6 +24,7 @@ let pronosticos = {};
 let pronosticosPendientes = new Set();
 let aplicacionCargada = false;
 let modoAuth = "login";
+let promesaInicializacionSupabase = null;
 
 const listaPartidos = document.getElementById("listaPartidos");
 const buscador = document.getElementById("buscador");
@@ -151,6 +152,31 @@ function traducirErrorAuth(error) {
   }
 
   return "No se pudo completar la acción. Probá de nuevo o revisá email y contraseña.";
+}
+
+async function esperarPreparacionSupabase() {
+  if (supabaseClient) return true;
+
+  try {
+    if (promesaInicializacionSupabase) {
+      ponerMensajeAuth("Terminando de preparar el acceso...", "info");
+      await promesaInicializacionSupabase;
+    }
+
+    if (!supabaseClient) {
+      ponerMensajeAuth("Revisando conexión con Supabase...", "info");
+      promesaInicializacionSupabase = inicializarSupabase();
+      await promesaInicializacionSupabase;
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  return Boolean(supabaseClient);
+}
+
+function mensajeSupabaseNoListo() {
+  return "El login todavía no conectó con Supabase. Revisá que en Netlify estén SUPABASE_URL y SUPABASE_ANON_KEY, y después hacé Deploy de nuevo.";
 }
 
 function bloquearFormularioAuth(bloqueado) {
@@ -289,8 +315,11 @@ function obtenerCredencialesAuth() {
 
 async function ingresar() {
   if (!supabaseClient) {
-    ponerMensajeAuth("Todavía se está preparando el acceso. Recargá la página y probá de nuevo.", "error");
-    return;
+    const listo = await esperarPreparacionSupabase();
+    if (!listo) {
+      ponerMensajeAuth(mensajeSupabaseNoListo(), "error");
+      return;
+    }
   }
 
   const credenciales = obtenerCredencialesAuth();
@@ -320,8 +349,11 @@ async function ingresar() {
 
 async function crearCuenta() {
   if (!supabaseClient) {
-    ponerMensajeAuth("Todavía se está preparando el acceso. Recargá la página y probá de nuevo.", "error");
-    return;
+    const listo = await esperarPreparacionSupabase();
+    if (!listo) {
+      ponerMensajeAuth(mensajeSupabaseNoListo(), "error");
+      return;
+    }
   }
 
   const credenciales = obtenerCredencialesAuth();
@@ -860,5 +892,6 @@ setInterval(sincronizarConteosGlobales, 10 * 1000);
 setInterval(mostrarPartidos, 60 * 1000);
 
 (async function iniciar() {
-  await inicializarSupabase();
+  promesaInicializacionSupabase = inicializarSupabase();
+  await promesaInicializacionSupabase;
 })();

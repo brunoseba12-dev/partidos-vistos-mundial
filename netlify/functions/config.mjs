@@ -23,7 +23,13 @@ export default async function handler(request) {
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return responder({ loginDisponible: false });
+    return responder({
+      loginDisponible: false,
+      falta: {
+        SUPABASE_URL: !supabaseUrl,
+        SUPABASE_ANON_KEY: !supabaseAnonKey
+      }
+    });
   }
 
   return responder({
