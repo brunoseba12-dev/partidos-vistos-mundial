@@ -173,7 +173,7 @@
 
     .partido {
       display: grid;
-      grid-template-columns: 112px 1fr 145px 190px;
+      grid-template-columns: 112px 1fr 145px 210px 190px;
       align-items: center;
       gap: 14px;
       background: rgba(255, 255, 255, 0.09);
@@ -244,6 +244,70 @@
     .estado {
       color: #cbd5e1;
       font-size: 12px;
+    }
+
+    .pronostico-bloque {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      text-align: center;
+      background: rgba(0, 224, 164, 0.09);
+      border: 1px solid rgba(0, 224, 164, 0.22);
+      border-radius: 16px;
+      padding: 10px;
+    }
+
+    .pronostico-bloque.cerrado {
+      background: rgba(148, 163, 184, 0.12);
+      border-color: rgba(148, 163, 184, 0.25);
+      opacity: 0.9;
+    }
+
+    .pronostico-titulo {
+      color: #a6ff00;
+      font-size: 11px;
+      font-weight: bold;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
+    .pronostico-inputs {
+      display: grid;
+      grid-template-columns: 54px 14px 54px;
+      gap: 6px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .pronostico-inputs input {
+      padding: 9px 6px;
+      text-align: center;
+      font-weight: bold;
+      border-radius: 12px;
+    }
+
+    .pronostico-inputs span {
+      color: #cbd5e1;
+      font-weight: bold;
+    }
+
+    .boton-pronostico {
+      padding: 9px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    .boton-pronostico:disabled,
+    .pronostico-inputs input:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .pronostico-estado {
+      color: #cbd5e1;
+      font-size: 10px;
+      line-height: 1.25;
     }
 
     .visto-bloque {
@@ -385,6 +449,7 @@
   <script>
     const API_URL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json";
     const VISTOS_API_URL = "/.netlify/functions/vistos";
+    const PRONOSTICOS_API_URL = "/.netlify/functions/pronosticos";
     const ZONA_HORARIA_URUGUAY = "America/Montevideo";
 
     const partidosFallback = [
@@ -399,6 +464,8 @@
     let vistos = JSON.parse(localStorage.getItem("mundial2026PartidosVistos")) || [];
     let conteosGlobales = {};
     let conteosPendientes = new Set();
+    let pronosticos = {};
+    let pronosticosPendientes = new Set();
 
     const listaPartidos = document.getElementById("listaPartidos");
     const buscador = document.getElementById("buscador");
@@ -431,6 +498,115 @@
     }
 
     const DISPOSITIVO_ID = obtenerDispositivoId();
+
+    function obtenerFechaHoraISO(partido) {
+      return partido.fechaHora ? partido.fechaHora.toISOString() : null;
+    }
+
+    function estaPencaBloqueada(partido) {
+      if (!partido.fechaHora) return false;
+      const cierre = partido.fechaHora.getTime() - 5 * 60 * 1000;
+      return Date.now() >= cierre;
+    }
+
+    function textoCierrePenca(partido) {
+      if (!partido.fechaHora) return "Cierre no disponible";
+
+      const cierre = new Date(partido.fechaHora.getTime() - 5 * 60 * 1000);
+
+      if (Date.now() >= cierre.getTime()) {
+        return "Penca cerrada";
+      }
+
+      return `Cierra ${cierre.toLocaleTimeString("es-UY", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: ZONA_HORARIA_URUGUAY
+      })} UY`;
+    }
+
+    function obtenerPronostico(id) {
+      return pronosticos[id] || { golesLocal: "", golesVisitante: "" };
+    }
+
+    async function cargarPronosticos() {
+      try {
+        const url = `${PRONOSTICOS_API_URL}?dispositivoId=${encodeURIComponent(DISPOSITIVO_ID)}`;
+        const respuesta = await fetch(url, { cache: "no-store" });
+
+        if (!respuesta.ok) {
+          throw new Error("No se pudieron cargar los pronósticos");
+        }
+
+        const datos = await respuesta.json();
+        pronosticos = datos.pronosticos || {};
+      } catch (error) {
+        console.warn("No se pudieron cargar los pronósticos", error);
+      }
+    }
+
+    async function guardarPronostico(partidoId) {
+      const partido = partidos.find(item => item.id === partidoId);
+
+      if (!partido) return;
+
+      if (estaPencaBloqueada(partido)) {
+        alert("La penca de este partido ya cerró. No se puede modificar.");
+        mostrarPartidos();
+        return;
+      }
+
+      const idSeguro = encodeURIComponent(partidoId);
+      const inputLocal = document.getElementById(`pred-local-${idSeguro}`);
+      const inputVisitante = document.getElementById(`pred-visitante-${idSeguro}`);
+      const golesLocal = Number(inputLocal?.value);
+      const golesVisitante = Number(inputVisitante?.value);
+
+      if (!Number.isInteger(golesLocal) || !Number.isInteger(golesVisitante) || golesLocal < 0 || golesVisitante < 0) {
+        alert("Poné un resultado válido. Ejemplo: 2 y 1.");
+        return;
+      }
+
+      pronosticosPendientes.add(partidoId);
+      mostrarPartidos();
+
+      try {
+        const respuesta = await fetch(PRONOSTICOS_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            partidoId,
+            dispositivoId: DISPOSITIVO_ID,
+            golesLocal,
+            golesVisitante,
+            fechaHoraISO: obtenerFechaHoraISO(partido),
+            local: partido.local,
+            visitante: partido.visitante
+          })
+        });
+
+        const datos = await respuesta.json();
+
+        if (!respuesta.ok) {
+          throw new Error(datos.error || "No se pudo guardar el pronóstico");
+        }
+
+        pronosticos[partidoId] = datos.pronostico;
+      } catch (error) {
+        alert(error.message || "No se pudo guardar el pronóstico.");
+      } finally {
+        pronosticosPendientes.delete(partidoId);
+        mostrarPartidos();
+      }
+    }
+
+    async function sincronizarPronosticos() {
+      await cargarPronosticos();
+      mostrarPartidos();
+    }
 
     function estaVisto(id) {
       return vistos.includes(id);
@@ -639,6 +815,7 @@
       ordenarPartidosPorDiaYHora();
       cargarFases();
       await cargarConteosGlobales();
+      await cargarPronosticos();
       mostrarRecuento();
       mostrarPartidos();
     }
@@ -724,6 +901,10 @@
       const cantidadGlobal = conteosGlobales[partido.id] || 0;
       const actualizandoConteo = conteosPendientes.has(partido.id);
       const idSeguro = encodeURIComponent(partido.id);
+      const pronostico = obtenerPronostico(partido.id);
+      const pencaBloqueada = estaPencaBloqueada(partido);
+      const guardandoPronostico = pronosticosPendientes.has(partido.id);
+      const disabledPenca = pencaBloqueada || guardandoPronostico ? "disabled" : "";
 
       return `
         <article class="partido ${visto ? "visto-ok" : ""}">
@@ -745,6 +926,37 @@
           <div class="resultado">
             <div class="marcador">${partido.marcador || "- : -"}</div>
             <div class="estado">${partido.estado}</div>
+          </div>
+
+          <div class="pronostico-bloque ${pencaBloqueada ? "cerrado" : ""}">
+            <div class="pronostico-titulo">Mi penca</div>
+            <div class="pronostico-inputs">
+              <input
+                id="pred-local-${idSeguro}"
+                type="number"
+                min="0"
+                max="30"
+                value="${pronostico.golesLocal ?? ""}"
+                ${disabledPenca}
+              />
+              <span>-</span>
+              <input
+                id="pred-visitante-${idSeguro}"
+                type="number"
+                min="0"
+                max="30"
+                value="${pronostico.golesVisitante ?? ""}"
+                ${disabledPenca}
+              />
+            </div>
+            <button
+              class="boton-pronostico"
+              onclick="guardarPronostico(decodeURIComponent('${idSeguro}'))"
+              ${disabledPenca}
+            >
+              ${guardandoPronostico ? "Guardando..." : pencaBloqueada ? "Cerrado" : "Guardar"}
+            </button>
+            <div class="pronostico-estado">${textoCierrePenca(partido)}</div>
           </div>
 
           <div class="visto-bloque">
@@ -816,7 +1028,9 @@
     actualizar.addEventListener("click", cargarPartidos);
 
     setInterval(cargarPartidos, 30 * 60 * 1000);
-    setInterval(sincronizarConteosGlobales, 1 * 1000);
+    setInterval(sincronizarConteosGlobales, 10 * 1000);
+    setInterval(sincronizarPronosticos, 10 * 1000);
+    setInterval(mostrarPartidos, 30 * 1000);
 
     cargarPartidos();
   </script>
