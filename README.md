@@ -1,12 +1,24 @@
-# Partidos Vistos Mundial
+# Partidos Vistos Mundial + Penca con Login
 
-Archivos para subir a GitHub y conectar con Netlify.
+Estructura:
 
-Estructura necesaria:
+- `frontend/`: página visible.
+- `netlify/functions/`: backend con Netlify Functions.
+- Supabase se usa solo para login.
+- Netlify Blobs guarda vistos y pronósticos.
 
-- index.html
-- package.json
-- netlify.toml
-- netlify/functions/vistos.mjs
+Variables necesarias en Netlify:
 
-En Netlify, dejá el build command vacío y el publish directory como `.`.
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Configuración Netlify:
+
+- Build command: vacío
+- Publish directory: `frontend`
+- Functions directory: `netlify/functions`
+
+En Supabase Authentication:
+
+- Site URL: URL de tu sitio Netlify
+- Redirect URLs: URL de tu sitio Netlify con `/*`

@@ -1,65 +1,70 @@
 import { getStore } from "@netlify/blobs";
 
-const MINUTOS_ANTES_DEL_PARTIDO = 5;
+const MINUTOS_CIERRE = 5;
 
 const HEADERS = {
   "Content-Type": "application/json",
   "Cache-Control": "no-store",
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type"
+  "Access-Control-Allow-Headers": "Content-Type, Authorization"
 };
 
 function responder(datos, status = 200) {
-  return new Response(JSON.stringify(datos), {
-    status,
-    headers: HEADERS
-  });
+  return new Response(JSON.stringify(datos), { status, headers: HEADERS });
 }
 
-function obtenerClave(partidoId, dispositivoId) {
-  return `usuarios/${encodeURIComponent(dispositivoId)}/pronosticos/${encodeURIComponent(partidoId)}`;
+function claveUsuario(usuarioId) {
+  return `usuarios/${encodeURIComponent(usuarioId)}/pronosticos/`;
 }
 
-function validarGoles(valor) {
-  const numero = Number(valor);
-  return Number.isInteger(numero) && numero >= 0 && numero <= 30;
+function clavePronostico(usuarioId, partidoId) {
+  return `${claveUsuario(usuarioId)}${encodeURIComponent(partidoId)}`;
 }
 
-function obtenerCierre(fechaHoraISO) {
-  const inicio = new Date(fechaHoraISO);
+async function obtenerUsuario(request) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const authorization = request.headers.get("authorization") || "";
+  const token = authorization.replace(/^Bearer\s+/i, "").trim();
 
-  if (Number.isNaN(inicio.getTime())) {
-    return null;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Faltan SUPABASE_URL o SUPABASE_ANON_KEY en Netlify");
   }
 
-  return new Date(inicio.getTime() - MINUTOS_ANTES_DEL_PARTIDO * 60 * 1000);
+  if (!token) return null;
+
+  const respuesta = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!respuesta.ok) return null;
+  return respuesta.json();
 }
 
-function estaBloqueado(fechaHoraISO) {
-  const cierre = obtenerCierre(fechaHoraISO);
-  return cierre ? Date.now() >= cierre.getTime() : true;
+function pencaCerrada(fechaHoraISO) {
+  const fechaPartido = new Date(fechaHoraISO);
+
+  if (Number.isNaN(fechaPartido.getTime())) {
+    return { cerrada: true, cierre: null };
+  }
+
+  const cierre = new Date(fechaPartido.getTime() - MINUTOS_CIERRE * 60 * 1000);
+  return { cerrada: Date.now() >= cierre.getTime(), cierre: cierre.toISOString() };
 }
 
-async function obtenerPronosticosDelUsuario(store, dispositivoId) {
-  const prefix = `usuarios/${encodeURIComponent(dispositivoId)}/pronosticos/`;
+async function obtenerPronosticosUsuario(store, usuarioId) {
+  const prefix = claveUsuario(usuarioId);
   const { blobs } = await store.list({ prefix });
   const pronosticos = {};
 
   for (const blob of blobs) {
-    const pronostico = await store.get(blob.key, { type: "json" });
-
-    if (pronostico?.partidoId) {
-      pronosticos[pronostico.partidoId] = {
-        partidoId: pronostico.partidoId,
-        golesLocal: pronostico.golesLocal,
-        golesVisitante: pronostico.golesVisitante,
-        local: pronostico.local,
-        visitante: pronostico.visitante,
-        fechaHoraISO: pronostico.fechaHoraISO,
-        updatedAt: pronostico.updatedAt,
-        bloqueado: estaBloqueado(pronostico.fechaHoraISO)
-      };
+    const dato = await store.get(blob.key, { type: "json" });
+    if (dato?.partidoId) {
+      pronosticos[dato.partidoId] = dato;
     }
   }
 
@@ -68,82 +73,59 @@ async function obtenerPronosticosDelUsuario(store, dispositivoId) {
 
 export default async function handler(request) {
   if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: HEADERS
-    });
+    return new Response(null, { status: 204, headers: HEADERS });
   }
 
-  const store = getStore({
-    name: "pronosticos-mundial-2026",
-    consistency: "strong"
-  });
+  const store = getStore({ name: "pronosticos-mundial-2026", consistency: "strong" });
 
   try {
+    const usuario = await obtenerUsuario(request);
+
+    if (!usuario?.id) {
+      return responder({ error: "Tenés que iniciar sesión para usar la penca" }, 401);
+    }
+
     if (request.method === "GET") {
-      const url = new URL(request.url);
-      const dispositivoId = String(url.searchParams.get("dispositivoId") || "").trim();
-
-      if (!dispositivoId) {
-        return responder({ error: "Falta dispositivoId" }, 400);
-      }
-
-      const pronosticos = await obtenerPronosticosDelUsuario(store, dispositivoId);
+      const pronosticos = await obtenerPronosticosUsuario(store, usuario.id);
       return responder({ pronosticos });
     }
 
     if (request.method === "POST") {
       const cuerpo = await request.json();
       const partidoId = String(cuerpo.partidoId || "").trim();
-      const dispositivoId = String(cuerpo.dispositivoId || "").trim();
+      const local = Number(cuerpo.local);
+      const visitante = Number(cuerpo.visitante);
       const fechaHoraISO = String(cuerpo.fechaHoraISO || "").trim();
-      const local = String(cuerpo.local || "").trim();
-      const visitante = String(cuerpo.visitante || "").trim();
-      const golesLocal = Number(cuerpo.golesLocal);
-      const golesVisitante = Number(cuerpo.golesVisitante);
+      const datosPartido = cuerpo.partido || {};
 
-      if (!partidoId || !dispositivoId || !fechaHoraISO) {
-        return responder({ error: "Faltan datos del partido o del usuario" }, 400);
+      if (!partidoId) return responder({ error: "Falta partidoId" }, 400);
+      if (!Number.isInteger(local) || !Number.isInteger(visitante) || local < 0 || visitante < 0) {
+        return responder({ error: "El resultado tiene que tener goles válidos" }, 400);
       }
 
-      if (!validarGoles(golesLocal) || !validarGoles(golesVisitante)) {
-        return responder({ error: "El resultado no es válido" }, 400);
+      const estadoCierre = pencaCerrada(fechaHoraISO);
+      if (estadoCierre.cerrada) {
+        return responder({ error: "La penca de este partido ya cerró" }, 423);
       }
 
-      if (estaBloqueado(fechaHoraISO)) {
-        return responder({
-          error: "La penca de este partido ya cerró. No se puede modificar."
-        }, 423);
-      }
-
-      const clave = obtenerClave(partidoId, dispositivoId);
       const pronostico = {
         partidoId,
-        dispositivoId,
+        userId: usuario.id,
+        email: usuario.email || null,
         local,
         visitante,
-        golesLocal,
-        golesVisitante,
+        partido: datosPartido,
         fechaHoraISO,
+        cierreISO: estadoCierre.cierre,
         updatedAt: new Date().toISOString()
       };
 
-      await store.setJSON(clave, pronostico);
-
-      return responder({
-        ok: true,
-        pronostico: {
-          ...pronostico,
-          bloqueado: estaBloqueado(fechaHoraISO)
-        }
-      });
+      await store.setJSON(clavePronostico(usuario.id, partidoId), pronostico);
+      return responder({ ok: true, pronostico });
     }
 
     return responder({ error: "Método no permitido" }, 405);
   } catch (error) {
-    return responder({
-      error: "No se pudo procesar la solicitud",
-      detalle: error.message
-    }, 500);
+    return responder({ error: "No se pudo procesar la solicitud", detalle: error.message }, 500);
   }
 }

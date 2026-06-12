@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mundial 2026 - Partidos vistos y penca</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">Mundial 2026</p>
+      <h1>Partidos vistos + penca</h1>
+      <p class="subtitulo">Marcá partidos vistos y cargá tu pronóstico antes del cierre.</p>
+    </div>
+    <div class="estado" id="estadoCarga">Preparando datos...</div>
+  </header>
+
+  <main class="contenedor">
+    <section class="auth-panel">
+      <div>
+        <h2>Login de penca</h2>
+        <p id="authEstado">No iniciaste sesión. Para guardar pronósticos necesitás entrar con tu cuenta.</p>
+      </div>
+
+      <div class="auth-form" id="authForm">
+        <input id="authEmail" type="email" placeholder="Email" autocomplete="email" />
+        <input id="authPassword" type="password" placeholder="Contraseña" autocomplete="current-password" />
+        <button id="btnIngresar">Ingresar</button>
+        <button id="btnCrearCuenta" class="secundario">Crear cuenta</button>
+      </div>
+
+      <div class="auth-logueado oculto" id="authLogueado">
+        <span id="usuarioActual"></span>
+        <button id="btnSalir" class="secundario">Salir</button>
+      </div>
+    </section>
+
+    <section class="resumen">
+      <div class="card-resumen">
+        <span>Total</span>
+        <strong id="totalPartidos">0</strong>
+      </div>
+      <div class="card-resumen">
+        <span>Vistos</span>
+        <strong id="partidosVistos">0</strong>
+      </div>
+      <div class="card-resumen">
+        <span>No vistos</span>
+        <strong id="partidosNoVistos">0</strong>
+      </div>
+      <div class="progreso">
+        <div id="barraVistos"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="controles">
+        <input id="buscador" type="search" placeholder="Buscar equipo o estadio..." />
+        <select id="filtroFase">
+          <option value="todos">Todas las fases</option>
+        </select>
+        <select id="filtroVisto">
+          <option value="todos">Todos</option>
+          <option value="vistos">Solo vistos</option>
+          <option value="no-vistos">Solo no vistos</option>
+        </select>
+        <button id="actualizar">Actualizar</button>
+        <button id="limpiar" class="secundario">Limpiar</button>
+      </div>
+
+      <p class="aviso">
+        La penca cierra 5 minutos antes de la hora marcada del partido. El bloqueo se valida también en backend.
+      </p>
+
+      <div id="listaPartidos" class="partidos"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

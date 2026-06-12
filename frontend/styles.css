@@ -1,0 +1,122 @@
+
+* { box-sizing: border-box; }
+:root {
+  --fondo: #07101f;
+  --panel: rgba(255, 255, 255, 0.10);
+  --panel-2: rgba(255, 255, 255, 0.16);
+  --texto: #ffffff;
+  --muted: rgba(255, 255, 255, 0.72);
+  --linea: rgba(255, 255, 255, 0.18);
+  --acento: #35f0c1;
+  --acento-2: #7aa8ff;
+  --rojo: #ff6868;
+  --amarillo: #ffd166;
+}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  color: var(--texto);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(53, 240, 193, .25), transparent 30%),
+    radial-gradient(circle at 80% 0%, rgba(122, 168, 255, .23), transparent 28%),
+    linear-gradient(180deg, #07101f, #0b1730 45%, #07101f);
+}
+button, input, select { font: inherit; }
+button {
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--acento);
+  color: #041019;
+  font-weight: 700;
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.05); }
+button:disabled { opacity: .55; cursor: not-allowed; }
+button.secundario { background: rgba(255,255,255,.16); color: white; }
+input, select {
+  border: 1px solid var(--linea);
+  background: rgba(0,0,0,.20);
+  color: white;
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
+}
+select option { color: #111; }
+.hero {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 36px min(6vw, 72px);
+}
+.eyebrow { margin: 0 0 8px; color: var(--acento); font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
+h1 { margin: 0; font-size: clamp(2rem, 5vw, 4rem); }
+.subtitulo { color: var(--muted); margin-bottom: 0; }
+.estado { background: var(--panel); border: 1px solid var(--linea); padding: 14px 16px; border-radius: 16px; max-width: 420px; }
+.contenedor { width: min(1180px, calc(100% - 24px)); margin: 0 auto 48px; }
+.auth-panel, .panel, .resumen {
+  background: var(--panel);
+  border: 1px solid var(--linea);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+.auth-panel { padding: 18px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+.auth-panel h2 { margin: 0 0 6px; }
+.auth-panel p { margin: 0; color: var(--muted); }
+.auth-form, .auth-logueado { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.oculto { display: none !important; }
+.resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 14px; margin-bottom: 16px; }
+.card-resumen { background: rgba(0,0,0,.16); border-radius: 16px; padding: 14px; }
+.card-resumen span { color: var(--muted); display: block; font-size: .9rem; }
+.card-resumen strong { font-size: 2rem; }
+.progreso { grid-column: 1 / -1; height: 12px; border-radius: 99px; background: rgba(255,255,255,.16); overflow: hidden; }
+.progreso div { width: 0%; height: 100%; background: linear-gradient(90deg, var(--acento), var(--acento-2)); transition: width .3s ease; }
+.panel { padding: 18px; }
+.controles { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 10px; margin-bottom: 12px; }
+.aviso { color: var(--muted); margin: 8px 0 18px; }
+.partidos { display: grid; gap: 14px; }
+.partido {
+  display: grid;
+  grid-template-columns: 155px 1fr 120px 185px 250px;
+  gap: 14px;
+  align-items: center;
+  background: rgba(255,255,255,.10);
+  border: 1px solid var(--linea);
+  border-radius: 18px;
+  padding: 16px;
+}
+.partido.visto-ok { border-color: rgba(53, 240, 193, .65); }
+.fecha { color: var(--muted); }
+.fecha strong { color: white; display: block; }
+.fase { color: var(--acento); font-size: .85rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.cruce { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 800; }
+.vs { color: var(--muted); font-size: .9rem; }
+.estadio, .estado, .conteo-global { color: var(--muted); font-size: .88rem; }
+.marcador { font-size: 1.8rem; font-weight: 900; text-align: center; }
+.visto-bloque { display: grid; gap: 8px; justify-items: center; }
+.visto { display: flex; gap: 8px; align-items: center; font-weight: 800; }
+.conteo-global.actualizando { opacity: .65; }
+.penca {
+  background: rgba(0,0,0,.18);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 16px;
+  padding: 12px;
+}
+.penca-titulo { display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 8px; font-weight: 900; }
+.penca-badge { font-size: .72rem; padding: 4px 8px; border-radius: 99px; background: rgba(53,240,193,.18); color: var(--acento); }
+.penca-badge.cerrada { background: rgba(255,104,104,.18); color: var(--rojo); }
+.penca-form { display: flex; gap: 6px; align-items: center; }
+.penca-form input { width: 54px; text-align: center; padding: 8px; }
+.penca-form button { padding: 8px 10px; }
+.penca-ayuda { margin-top: 8px; color: var(--muted); font-size: .82rem; line-height: 1.3; }
+.sin-resultados { text-align: center; color: var(--muted); padding: 28px; }
+@media (max-width: 980px) {
+  .hero, .auth-panel { grid-template-columns: 1fr; display: grid; }
+  .auth-form, .auth-logueado { justify-content: flex-start; }
+  .controles { grid-template-columns: 1fr; }
+  .partido { grid-template-columns: 1fr; }
+  .resultado, .visto-bloque { justify-items: start; text-align: left; }
+  .resumen { grid-template-columns: 1fr; }
+}
