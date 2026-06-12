@@ -16,15 +16,19 @@ export default async function handler(request) {
   }
 
   if (request.method !== "GET") {
-    return responder({ error: "Método no permitido" }, 405);
+    return responder({ loginDisponible: false }, 405);
   }
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return responder({ error: "Faltan SUPABASE_URL o SUPABASE_ANON_KEY en Netlify" }, 500);
+    return responder({ loginDisponible: false });
   }
 
-  return responder({ supabaseUrl, supabaseAnonKey });
+  return responder({
+    loginDisponible: true,
+    supabaseUrl,
+    supabaseAnonKey
+  });
 }

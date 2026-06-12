@@ -3,79 +3,132 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mundial 2026 - Partidos vistos y penca</title>
+  <title>Mundial 2026 - Penca</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <header class="hero">
-    <div>
-      <p class="eyebrow">Mundial 2026</p>
-      <h1>Partidos vistos + penca</h1>
-      <p class="subtitulo">Marcá partidos vistos y cargá tu pronóstico antes del cierre.</p>
+  <section class="portal-auth" id="portalLogin" aria-label="Portal de acceso">
+    <div class="portal-topline" aria-hidden="true">
+      <span class="portal-pill">🏆 El torneo nos une</span>
+      <span class="portal-dot"></span>
+      <span>Tu pasión, tu predicción</span>
     </div>
-    <div class="estado" id="estadoCarga">Preparando datos...</div>
-  </header>
 
-  <main class="contenedor">
-    <section class="auth-panel">
-      <div>
-        <h2>Login de penca</h2>
-        <p id="authEstado">No iniciaste sesión. Para guardar pronósticos necesitás entrar con tu cuenta.</p>
-      </div>
+    <div class="portal-card" role="form" aria-labelledby="portalTitulo">
+      <img class="portal-copa" src="/assets/copa-mundial.png" alt="Copa del mundo" />
 
-      <div class="auth-form" id="authForm">
-        <input id="authEmail" type="email" placeholder="Email" autocomplete="email" />
-        <input id="authPassword" type="password" placeholder="Contraseña" autocomplete="current-password" />
-        <button id="btnIngresar">Ingresar</button>
-        <button id="btnCrearCuenta" class="secundario">Crear cuenta</button>
+      <div class="portal-titulo-wrap">
+        <h1 id="portalTitulo" class="portal-title">
+          Mundial <span>2026</span>
+        </h1>
+        <p class="portal-kicker"><span></span>Entrá a la penca<span></span></p>
+        <p class="portal-subtitulo">
+          Iniciá sesión o registrate para ver los partidos y cargar tus pronósticos.
+        </p>
       </div>
 
-      <div class="auth-logueado oculto" id="authLogueado">
-        <span id="usuarioActual"></span>
-        <button id="btnSalir" class="secundario">Salir</button>
-      </div>
-    </section>
-
-    <section class="resumen">
-      <div class="card-resumen">
-        <span>Total</span>
-        <strong id="totalPartidos">0</strong>
-      </div>
-      <div class="card-resumen">
-        <span>Vistos</span>
-        <strong id="partidosVistos">0</strong>
-      </div>
-      <div class="card-resumen">
-        <span>No vistos</span>
-        <strong id="partidosNoVistos">0</strong>
-      </div>
-      <div class="progreso">
-        <div id="barraVistos"></div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="controles">
-        <input id="buscador" type="search" placeholder="Buscar equipo o estadio..." />
-        <select id="filtroFase">
-          <option value="todos">Todas las fases</option>
-        </select>
-        <select id="filtroVisto">
-          <option value="todos">Todos</option>
-          <option value="vistos">Solo vistos</option>
-          <option value="no-vistos">Solo no vistos</option>
-        </select>
-        <button id="actualizar">Actualizar</button>
-        <button id="limpiar" class="secundario">Limpiar</button>
+      <div class="auth-tabs" aria-label="Elegir acción">
+        <button id="authModoLogin" class="tab-activa" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg>
+          Iniciar sesión
+        </button>
+        <button id="authModoRegistro" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.86 0-7 1.79-7 4v1h8.1A6.48 6.48 0 0 1 16 18a6.59 6.59 0 0 1 .35-2.12A10.26 10.26 0 0 0 15 14Zm6 3h-2v-2h-2v2h-2v2h2v2h2v-2h2Z"/></svg>
+          Registrarte
+        </button>
       </div>
 
-      <p class="aviso">
-        La penca cierra 5 minutos antes de la hora marcada del partido. El bloqueo se valida también en backend.
+      <div class="portal-form">
+        <label>
+          Email
+          <span class="campo-icono">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm-.4 4.25-7.07 4.42a1 1 0 0 1-1.06 0L4.4 8.25A1 1 0 0 1 5.46 6.55L12 10.64l6.54-4.09a1 1 0 0 1 1.06 1.7Z"/></svg>
+            <input id="authEmail" type="email" placeholder="tu@email.com" autocomplete="email" />
+          </span>
+        </label>
+
+        <label>
+          Contraseña
+          <span class="campo-icono campo-password">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 9V7A5 5 0 0 0 7 7v2H5v12h14V9Zm-8 0V7a3 3 0 0 1 6 0v2Zm4 7.73V18h-2v-1.27a2 2 0 1 1 2 0Z"/></svg>
+            <input id="authPassword" type="password" placeholder="Mínimo 6 caracteres" autocomplete="current-password" />
+            <button id="authPasswordToggle" class="password-toggle" type="button" aria-label="Mostrar u ocultar contraseña">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5.52 0 9.5 5.25 9.66 5.47a2.6 2.6 0 0 1 0 3.06C21.5 13.75 17.52 19 12 19s-9.5-5.25-9.66-5.47a2.6 2.6 0 0 1 0-3.06C2.5 10.25 6.48 5 12 5Zm0 2c-4.22 0-7.46 4.23-8 4.98.54.79 3.78 5.02 8 5.02s7.46-4.23 8-4.98C19.46 11.23 16.22 7 12 7Zm0 2.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5Z"/></svg>
+            </button>
+          </span>
+        </label>
+
+        <button id="btnAuthPrincipal" class="btn-ingresar" type="button">Ingresar</button>
+      </div>
+
+      <div class="portal-divider"><span></span><em>o</em><span></span></div>
+
+      <p class="portal-cuenta">
+        ¿No tenés cuenta?
+        <button id="linkModoRegistro" type="button">Registrate acá</button>
       </p>
 
-      <div id="listaPartidos" class="partidos"></div>
-    </section>
-  </main>
+      <p class="auth-mensaje" id="authMensaje" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <div class="app-shell oculto" id="appShell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Mundial 2026</p>
+        <h1>Partidos vistos + penca</h1>
+        <p class="subtitulo">Marcá partidos vistos y cargá tu pronóstico antes del cierre.</p>
+      </div>
+      <div class="estado estado-usuario">
+        <span id="estadoCarga">Preparando datos...</span>
+        <span id="usuarioActual"></span>
+        <button id="btnSalir" class="secundario" type="button">Salir</button>
+      </div>
+    </header>
+
+    <main class="contenedor">
+      <section class="resumen">
+        <div class="card-resumen">
+          <span>Total</span>
+          <strong id="totalPartidos">0</strong>
+        </div>
+        <div class="card-resumen">
+          <span>Vistos</span>
+          <strong id="partidosVistos">0</strong>
+        </div>
+        <div class="card-resumen">
+          <span>No vistos</span>
+          <strong id="partidosNoVistos">0</strong>
+        </div>
+        <div class="progreso">
+          <div id="barraVistos"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="controles">
+          <input id="buscador" type="search" placeholder="Buscar equipo o estadio..." />
+          <select id="filtroFase">
+            <option value="todos">Todas las fases</option>
+          </select>
+          <select id="filtroVisto">
+            <option value="todos">Todos</option>
+            <option value="vistos">Solo vistos</option>
+            <option value="no-vistos">Solo no vistos</option>
+          </select>
+          <button id="actualizar" type="button">Actualizar</button>
+          <button id="limpiar" class="secundario" type="button">Limpiar</button>
+        </div>
+
+        <p class="aviso">
+          La penca cierra 5 minutos antes de la hora marcada del partido. El bloqueo se valida también en backend.
+        </p>
+
+        <div id="listaPartidos" class="partidos"></div>
+      </section>
+    </main>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/app.js"></script>

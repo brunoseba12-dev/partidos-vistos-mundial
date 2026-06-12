@@ -29,7 +29,7 @@ async function obtenerUsuario(request) {
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Faltan SUPABASE_URL o SUPABASE_ANON_KEY en Netlify");
+    throw new Error("Configuración de acceso no disponible");
   }
 
   if (!token) return null;

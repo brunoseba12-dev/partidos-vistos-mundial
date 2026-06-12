@@ -22,6 +22,8 @@ let conteosGlobales = {};
 let conteosPendientes = new Set();
 let pronosticos = {};
 let pronosticosPendientes = new Set();
+let aplicacionCargada = false;
+let modoAuth = "login";
 
 const listaPartidos = document.getElementById("listaPartidos");
 const buscador = document.getElementById("buscador");
@@ -34,14 +36,17 @@ const partidosVistos = document.getElementById("partidosVistos");
 const partidosNoVistos = document.getElementById("partidosNoVistos");
 const barraVistos = document.getElementById("barraVistos");
 const estadoCarga = document.getElementById("estadoCarga");
-const authEstado = document.getElementById("authEstado");
-const authForm = document.getElementById("authForm");
-const authLogueado = document.getElementById("authLogueado");
-const usuarioActual = document.getElementById("usuarioActual");
+const portalLogin = document.getElementById("portalLogin");
+const appShell = document.getElementById("appShell");
+const authMensaje = document.getElementById("authMensaje");
 const authEmail = document.getElementById("authEmail");
 const authPassword = document.getElementById("authPassword");
-const btnIngresar = document.getElementById("btnIngresar");
-const btnCrearCuenta = document.getElementById("btnCrearCuenta");
+const authModoLogin = document.getElementById("authModoLogin");
+const authModoRegistro = document.getElementById("authModoRegistro");
+const btnAuthPrincipal = document.getElementById("btnAuthPrincipal");
+const authPasswordToggle = document.getElementById("authPasswordToggle");
+const linkModoRegistro = document.getElementById("linkModoRegistro");
+const usuarioActual = document.getElementById("usuarioActual");
 const btnSalir = document.getElementById("btnSalir");
 
 function guardarVistos() {
@@ -100,80 +105,195 @@ async function fetchAutenticado(url, opciones = {}) {
   });
 }
 
-async function inicializarSupabase() {
-  try {
-    const respuesta = await fetch(CONFIG_API_URL, { cache: "no-store" });
-    if (!respuesta.ok) throw new Error("No se pudo cargar la configuración de Supabase");
+function mostrarPortal() {
+  portalLogin.classList.remove("oculto");
+  appShell.classList.add("oculto");
+}
 
-    const config = await respuesta.json();
-    supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+function mostrarApp() {
+  portalLogin.classList.add("oculto");
+  appShell.classList.remove("oculto");
+}
 
-    const { data } = await supabaseClient.auth.getSession();
-    sesionActual = data.session;
-    actualizarUIAuth();
+function ponerMensajeAuth(texto, tipo = "info") {
+  authMensaje.textContent = texto;
+  authMensaje.dataset.tipo = tipo;
+}
 
-    supabaseClient.auth.onAuthStateChange(async (_evento, session) => {
-      sesionActual = session;
-      actualizarUIAuth();
-      pronosticos = {};
-      await cargarPronosticos();
-      mostrarPartidos();
-    });
-  } catch (error) {
-    console.error(error);
-    authEstado.textContent = "No se pudo inicializar el login. Revisá SUPABASE_URL y SUPABASE_ANON_KEY en Netlify.";
-  }
+function bloquearFormularioAuth(bloqueado) {
+  authEmail.disabled = bloqueado;
+  authPassword.disabled = bloqueado;
+  btnAuthPrincipal.disabled = bloqueado;
+  authModoLogin.disabled = bloqueado;
+  authModoRegistro.disabled = bloqueado;
+}
+
+function cambiarModoAuth(modo) {
+  modoAuth = modo;
+  const esRegistro = modoAuth === "registro";
+
+  authModoLogin.classList.toggle("tab-activa", !esRegistro);
+  authModoRegistro.classList.toggle("tab-activa", esRegistro);
+  btnAuthPrincipal.textContent = esRegistro ? "Crear cuenta" : "Ingresar";
+  authPassword.autocomplete = esRegistro ? "new-password" : "current-password";
+  ponerMensajeAuth(
+    esRegistro
+      ? "Creá tu usuario para entrar a la penca. Si Supabase pide confirmar email, revisá tu correo."
+      : "Ingresá con tu cuenta para entrar a la penca.",
+    "info"
+  );
 }
 
 function actualizarUIAuth() {
   if (sesionActual?.user) {
-    authEstado.textContent = "Sesión iniciada. Tus pronósticos quedan guardados con tu usuario.";
     usuarioActual.textContent = sesionActual.user.email || sesionActual.user.id;
-    authForm.classList.add("oculto");
-    authLogueado.classList.remove("oculto");
   } else {
-    authEstado.textContent = "No iniciaste sesión. Para guardar pronósticos necesitás entrar con tu cuenta.";
     usuarioActual.textContent = "";
-    authForm.classList.remove("oculto");
-    authLogueado.classList.add("oculto");
   }
+}
+
+async function cargarAppSiCorresponde() {
+  if (!sesionActual?.user) return;
+
+  mostrarApp();
+  actualizarUIAuth();
+
+  if (!aplicacionCargada) {
+    aplicacionCargada = true;
+    await cargarPartidos();
+  } else {
+    await cargarPronosticos();
+    mostrarPartidos();
+  }
+}
+
+async function inicializarSupabase() {
+  mostrarPortal();
+  bloquearFormularioAuth(true);
+  ponerMensajeAuth("Preparando acceso seguro...", "info");
+
+  try {
+    const respuesta = await fetch(CONFIG_API_URL, { cache: "no-store" });
+    const config = await respuesta.json().catch(() => ({}));
+
+    if (!respuesta.ok || !config.loginDisponible || !config.supabaseUrl || !config.supabaseAnonKey) {
+      bloquearFormularioAuth(true);
+      ponerMensajeAuth("El acceso no está disponible ahora. Probá de nuevo en unos minutos.", "error");
+      return;
+    }
+
+    supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+    const { data } = await supabaseClient.auth.getSession();
+    sesionActual = data.session;
+    bloquearFormularioAuth(false);
+    cambiarModoAuth("login");
+
+    supabaseClient.auth.onAuthStateChange(async (_evento, session) => {
+      sesionActual = session;
+      actualizarUIAuth();
+
+      if (sesionActual?.user) {
+        pronosticos = {};
+        await cargarAppSiCorresponde();
+      } else {
+        pronosticos = {};
+        aplicacionCargada = false;
+        mostrarPortal();
+        cambiarModoAuth("login");
+      }
+    });
+
+    if (sesionActual?.user) {
+      await cargarAppSiCorresponde();
+    } else {
+      mostrarPortal();
+    }
+  } catch (error) {
+    console.error(error);
+    bloquearFormularioAuth(true);
+    ponerMensajeAuth("El acceso no está disponible ahora. Probá de nuevo en unos minutos.", "error");
+  }
+}
+
+function obtenerCredencialesAuth() {
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+
+  if (!email || !password) {
+    ponerMensajeAuth("Poné email y contraseña.", "error");
+    return null;
+  }
+
+  if (password.length < 6) {
+    ponerMensajeAuth("La contraseña debe tener al menos 6 caracteres.", "error");
+    return null;
+  }
+
+  return { email, password };
 }
 
 async function ingresar() {
   if (!supabaseClient) return;
-  const email = authEmail.value.trim();
-  const password = authPassword.value;
+  const credenciales = obtenerCredencialesAuth();
+  if (!credenciales) return;
 
-  if (!email || !password) {
-    alert("Poné email y contraseña.");
+  bloquearFormularioAuth(true);
+  ponerMensajeAuth("Ingresando...", "info");
+
+  const { error } = await supabaseClient.auth.signInWithPassword(credenciales);
+
+  bloquearFormularioAuth(false);
+
+  if (error) {
+    ponerMensajeAuth("No pudimos iniciar sesión. Revisá email y contraseña.", "error");
     return;
   }
 
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) alert(error.message);
+  ponerMensajeAuth("Listo, entrando...", "ok");
 }
 
 async function crearCuenta() {
   if (!supabaseClient) return;
-  const email = authEmail.value.trim();
-  const password = authPassword.value;
+  const credenciales = obtenerCredencialesAuth();
+  if (!credenciales) return;
 
-  if (!email || !password) {
-    alert("Poné email y contraseña.");
+  bloquearFormularioAuth(true);
+  ponerMensajeAuth("Creando cuenta...", "info");
+
+  const { data, error } = await supabaseClient.auth.signUp(credenciales);
+
+  bloquearFormularioAuth(false);
+
+  if (error) {
+    ponerMensajeAuth("No pudimos crear la cuenta. Probá con otro email o contraseña.", "error");
     return;
   }
 
-  const { error } = await supabaseClient.auth.signUp({ email, password });
-  if (error) {
-    alert(error.message);
+  if (data.session) {
+    ponerMensajeAuth("Cuenta creada. Entrando...", "ok");
   } else {
-    alert("Cuenta creada. Si Supabase pide confirmar email, revisá tu correo antes de ingresar.");
+    ponerMensajeAuth("Cuenta creada. Revisá tu correo para confirmar y después iniciá sesión.", "ok");
+    cambiarModoAuth("login");
+  }
+}
+
+async function enviarAuth() {
+  if (modoAuth === "registro") {
+    await crearCuenta();
+  } else {
+    await ingresar();
   }
 }
 
 async function salir() {
   if (!supabaseClient) return;
   await supabaseClient.auth.signOut();
+  sesionActual = null;
+  pronosticos = {};
+  aplicacionCargada = false;
+  mostrarPortal();
+  cambiarModoAuth("login");
 }
 
 async function cargarConteosGlobales() {
@@ -618,9 +738,23 @@ limpiar.addEventListener("click", () => {
 });
 
 actualizar.addEventListener("click", cargarPartidos);
-btnIngresar.addEventListener("click", ingresar);
-btnCrearCuenta.addEventListener("click", crearCuenta);
+btnAuthPrincipal.addEventListener("click", enviarAuth);
+authModoLogin.addEventListener("click", () => cambiarModoAuth("login"));
+authModoRegistro.addEventListener("click", () => cambiarModoAuth("registro"));
+linkModoRegistro?.addEventListener("click", () => cambiarModoAuth("registro"));
+authPasswordToggle?.addEventListener("click", () => {
+  const mostrando = authPassword.type === "text";
+  authPassword.type = mostrando ? "password" : "text";
+  authPasswordToggle.setAttribute("aria-label", mostrando ? "Mostrar contraseña" : "Ocultar contraseña");
+});
 btnSalir.addEventListener("click", salir);
+
+authPassword.addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") enviarAuth();
+});
+authEmail.addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") enviarAuth();
+});
 
 listaPartidos.addEventListener("change", (evento) => {
   const input = evento.target.closest("[data-visto]");
@@ -640,5 +774,4 @@ setInterval(mostrarPartidos, 60 * 1000);
 
 (async function iniciar() {
   await inicializarSupabase();
-  await cargarPartidos();
 })();

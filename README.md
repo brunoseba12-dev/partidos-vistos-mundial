@@ -1,24 +1,31 @@
-# Partidos Vistos Mundial + Penca con Login
+# Partidos Vistos Mundial + Penca
 
-Estructura:
+Proyecto reestructurado con frontend separado, Netlify Functions y login con Supabase.
 
-- `frontend/`: página visible.
-- `netlify/functions/`: backend con Netlify Functions.
-- Supabase se usa solo para login.
-- Netlify Blobs guarda vistos y pronósticos.
+## Estructura
 
-Variables necesarias en Netlify:
+- frontend/index.html
+- frontend/styles.css
+- frontend/app.js
+- frontend/assets/fondo-mundial-2026.jpg
+- frontend/assets/copa-mundial.png
+- netlify/functions/config.mjs
+- netlify/functions/vistos.mjs
+- netlify/functions/pronosticos.mjs
+- package.json
+- netlify.toml
 
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
+## Netlify
 
-Configuración Netlify:
+En Build & deploy:
 
 - Build command: vacío
 - Publish directory: `frontend`
 - Functions directory: `netlify/functions`
 
-En Supabase Authentication:
+Variables de entorno necesarias:
 
-- Site URL: URL de tu sitio Netlify
-- Redirect URLs: URL de tu sitio Netlify con `/*`
+- SUPABASE_URL
+- SUPABASE_ANON_KEY
+
+No usar la service_role key en el frontend.
